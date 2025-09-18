@@ -69,7 +69,7 @@ const getAllPosts = async ({page=1,limit=1,search,isFeatured,tags}
 const getPostById = async (id: number) => {
    return await prisma.$transaction(async(tx)=>{
          await tx.post.update({
-      where:{id} ,
+      where:{id:id} ,
       data:{
         views:{
             increment:1
@@ -87,6 +87,10 @@ const getPostById = async (id: number) => {
 
 };
 
+
+
+
+
 const updatePost = async (id: number, data: Partial<any>) => {
     return prisma.post.update({ where: { id }, data });
 };
@@ -95,10 +99,61 @@ const deletePost = async (id: number) => {
     return prisma.post.delete({ where: { id } });
 };
 
+const getBlogStat = async()=>{
+    return await prisma.$transaction(async(tx)=>{
+        const aggregates = await tx.post.aggregate({
+            _count: true,
+            _sum:{views:true},
+            _avg:{views:true},
+            _max:{views:true},
+            _min:{views:true}
+        })
+
+        const featuredCount = await tx.post.count({
+            where:{
+                isFeatured:true,
+                
+            },
+            orderBy:{
+                    views:"desc"
+                }
+        });
+        const topFeatured= await tx.post.findFirst({
+            where: {isFeatured:true}
+        })
+        const lastWeek = new Date();
+         lastWeek.setDate( lastWeek.getDate()-7)
+
+         const lastWeekPostCount= await tx.post.count({
+            where:{
+                createdAt:{
+                    gte:lastWeek
+                }
+            }
+         })
+        return {
+            stats:{
+                totalPosts:aggregates._count ?? 0,
+                totalViews:aggregates._sum.views ?? 0,
+                avgViews: aggregates._avg.views??0,
+                minViews:aggregates._min.views??0,
+                maxViews:aggregates._max.views??0
+
+            },
+            featured:{
+                count :featuredCount,
+                topPost:topFeatured
+            },
+            lastWeekPostCount
+        };
+    })
+}
+
 export const PostService = {
     createPost,
     getAllPosts,
     getPostById,
     updatePost,
-    deletePost
+    deletePost,
+     getBlogStat
 }
