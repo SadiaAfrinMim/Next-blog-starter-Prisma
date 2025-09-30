@@ -20,51 +20,60 @@ const createPost = async(payload:Prisma.PostCreateInput):Promise<Post>=>{
 
 }
 
+const getAllPosts = async ({
+    page = 1,
+    limit = 10,
+    search,
+    isFeatured,
+    tags
+}: {
+    page?: number,
+    limit?: number,
+    search?: string,
+    isFeatured?: boolean,
+    tags?: string[]
+}) => {
+    const skip = (page - 1) * limit;
 
-
-const getAllPosts = async ({page=1,limit=1,search,isFeatured,tags}
-    :{page?:number
-      limit?:number
-      search?:string
-      isFeatured?:boolean
-      tags?: string[]
-    }) => {
-    
-    const skip = (page-1)*limit;   
-    console.log(tags) 
-    const where:any =  {
-        AND:[
+    const where: any = {
+        AND: [
             search && {
-                OR:[
-                    {title:{contains:search,mode:"insensitive"}},
-                    {content:{contains:search,mode:"insenitive"}}
+                OR: [
+                    { title: { contains: search, mode: 'insensitive' } },
+                    { content: { contains: search, mode: 'insensitive' } }
                 ]
-            },typeof isFeatured === 'boolean' && {isFeatured},
-            (tags && tags.length>0) && {tags:{hasEvery:tags}}
-            
+
+            },
+            typeof isFeatured === "boolean" && { isFeatured },
+            (tags && tags.length > 0) && { tags: { hasEvery: tags } }
         ].filter(Boolean)
     }
+
     const result = await prisma.post.findMany({
         skip,
-        take:limit,
-         where,
-         include:{
+        take: limit,
+        where,
+        include: {
             author: true
-         },
-         orderBy:{
-            createdAt:"desc"
-         }
+        },
+        orderBy: {
+            createdAt: "desc"
+        }
     });
 
-    const  total = await prisma.post.count({where})
+    const total = await prisma.post.count({ where })
+
     return {
-        data:result,
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total/limit)
-    }
+        data: result,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        }
+    };
 };
+
 
 const getPostById = async (id: number) => {
    return await prisma.$transaction(async(tx)=>{
